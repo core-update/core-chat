@@ -1,6 +1,7 @@
 package org.qortal.controller;
 
 import org.eclipse.jetty.websocket.api.Session;
+import org.qortal.data.chat.ChatMessage;
 import org.qortal.data.transaction.ChatTransactionData;
 
 import java.util.ArrayList;
@@ -14,7 +15,7 @@ public class ChatNotifier {
 
 	@FunctionalInterface
 	public interface Listener {
-		void notify(ChatTransactionData chatTransactionData);
+		void notify(ChatMessage chatMessage);
 	}
 
 	private Map<Session, Listener> listenersBySession = new HashMap<>();
@@ -41,9 +42,9 @@ public class ChatNotifier {
 		}
 	}
 
-	public void onNewChatTransaction(ChatTransactionData chatTransactionData) {
+	public void onNewChatMessage(ChatMessage chatMessage) {
 		for (Listener listener : getAllListeners())
-			listener.notify(chatTransactionData);
+			listener.notify(chatMessage);
 	}
 
 	public void onGroupMembershipChange() {

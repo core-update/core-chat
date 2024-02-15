@@ -6,7 +6,6 @@ import org.eclipse.jetty.websocket.api.annotations.*;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 import org.qortal.controller.ChatNotifier;
 import org.qortal.data.chat.ChatMessage;
-import org.qortal.data.transaction.ChatTransactionData;
 import org.qortal.repository.DataException;
 import org.qortal.repository.Repository;
 import org.qortal.repository.RepositoryManager;
@@ -65,7 +64,7 @@ public class ChatMessagesWebSocket extends ApiWebSocket {
 				return;
 			}
 
-			ChatNotifier.Listener listener = chatTransactionData -> onNotify(session, chatTransactionData, txGroupId);
+			ChatNotifier.Listener listener = chatMessage -> onNotify(session, chatMessage, txGroupId);
 			ChatNotifier.getInstance().register(session, listener);
 
 			return;
@@ -97,7 +96,7 @@ public class ChatMessagesWebSocket extends ApiWebSocket {
 			return;
 		}
 
-		ChatNotifier.Listener listener = chatTransactionData -> onNotify(session, chatTransactionData, involvingAddresses);
+		ChatNotifier.Listener listener = chatMessage -> onNotify(session, chatMessage, involvingAddresses);
 		ChatNotifier.getInstance().register(session, listener);
 	}
 
@@ -119,33 +118,33 @@ public class ChatMessagesWebSocket extends ApiWebSocket {
 		}
 	}
 
-	private void onNotify(Session session, ChatTransactionData chatTransactionData, int txGroupId) {
-		if (chatTransactionData == null)
+	private void onNotify(Session session, ChatMessage chatMessage, int txGroupId) {
+		if (chatMessage == null)
 			// There has been a group-membership change, but we're not interested
 			return;
 
 		// We only want group-based messages with our txGroupId
-		if (chatTransactionData.getRecipient() != null || chatTransactionData.getTxGroupId() != txGroupId)
+		if (chatMessage.getRecipient() != null || chatMessage.getTxGroupId() != txGroupId)
 			return;
 
-		sendChat(session, chatTransactionData);
+		sendChat(session, chatMessage);
 	}
 
-	private void onNotify(Session session, ChatTransactionData chatTransactionData, List<String> involvingAddresses) {
-		if (chatTransactionData == null)
+	private void onNotify(Session session, ChatMessage chatMessage, List<String> involvingAddresses) {
+		if (chatMessage == null)
 			return;
 
 		// We only want direct/non-group messages where sender/recipient match our addresses
-		String recipient = chatTransactionData.getRecipient();
+		String recipient = chatMessage.getRecipient();
 		if (recipient == null)
 			return;
 
-		List<String> transactionAddresses = Arrays.asList(recipient, chatTransactionData.getSender());
+		List<String> transactionAddresses = Arrays.asList(recipient, chatMessage.getSender());
 
 		if (!transactionAddresses.containsAll(involvingAddresses))
 			return;
 
-		sendChat(session, chatTransactionData);
+		sendChat(session, chatMessage);
 	}
 
 	private void sendMessages(Session session, List<ChatMessage> chatMessages) {
@@ -160,16 +159,7 @@ public class ChatMessagesWebSocket extends ApiWebSocket {
 		}
 	}
 
-	private void sendChat(Session session, ChatTransactionData chatTransactionData) {
-		// Convert ChatTransactionData to ChatMessage
-		ChatMessage chatMessage;
-		try (final Repository repository = RepositoryManager.getRepository()) {
-			chatMessage = repository.getChatRepository().toChatMessage(chatTransactionData, getTargetEncoding(session));
-		} catch (DataException e) {
-			// No output this time?
-			return;
-		}
-
+	private void sendChat(Session session, ChatMessage chatMessage) {
 		sendMessages(session, Collections.singletonList(chatMessage));
 	}
 
